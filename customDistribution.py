@@ -32,7 +32,7 @@ class combinedNormals(rv_continuous):
         return samples
 
     def pdf_list(self, values):
-        pdf_values = np.array(self.pdf(values))  # Compute all at once
+        pdf_values = np.array(self.pdf(values))
         return torch.from_numpy(pdf_values)
 
 

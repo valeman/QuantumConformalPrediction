@@ -14,6 +14,9 @@ from customDistribution import combinedNormals
 from torch.utils.data import DataLoader, TensorDataset
 from helper_functions import evenlySpaceEigenstates, toClosestEigenstate
 
+from torchquantum.plugin import tq2qiskit
+from qiskit.visualization import circuit_drawer
+from sklearn.neighbors import KernelDensity
 
 
 
@@ -28,42 +31,46 @@ class NegativeLogSumCriterion(nn.Module):
         return -sum_log
 
 
-class QuantumLayer(tq.QuantumModule):
+class QuantumCircuit(tq.QuantumModule):
     def __init__(self, n_wires, n_layers):
-        super(QuantumLayer, self).__init__()
+        super(QuantumCircuit, self).__init__()
         self.q_device = tq.QuantumDevice(n_wires=n_wires, bsz=1)  # Batch size set to 1 for simplicity
         self.n_layers = n_layers
         self.n_wires = n_wires
 
-        self.rz_layers1 = torch.nn.ModuleList([
-            tq.RZ(has_params=True, trainable=True) for _ in range(n_layers * n_wires)
-        ])
-        self.ry_layers = torch.nn.ModuleList([
-            tq.RY(has_params=True, trainable=True) for _ in range(n_layers * n_wires)
-        ])
-        self.rz_layers2 = torch.nn.ModuleList([
-            tq.RZ(has_params=True, trainable=True) for _ in range(n_layers * n_wires)
-        ])
+        for layer in range(n_layers):
+            for wire in range(n_wires):
+                setattr(self, f"rz1_layer{layer}_wire{wire}", tq.RZ(has_params=True, trainable=True))
+                setattr(self, f"ry_layer{layer}_wire{wire}", tq.RY(has_params=True, trainable=True))
+                setattr(self, f"rz2_layer{layer}_wire{wire}", tq.RZ(has_params=True, trainable=True))
+
+            for wire in range(n_wires - 1):
+                setattr(self, f"cz_layer{layer}_wires{wire}_{wire + 1}", tq.CZ(has_params=False, trainable=False))
+
+        
         self.cz = tq.CZ(has_params=False, trainable=False)
 
 
     @tq.static_support
-    def forward(self, q_device=None, measure=False):
-
-        q_device = self.q_device
-        q_device.reset_states(1)
+    def forward(self, q_device=None, measure=False, reset_states=True):
+        if q_device == None: q_device = self.q_device
+        if reset_states: q_device.reset_states(1)
 
         for l in range(self.n_layers):
             for wire in range(self.n_wires):
                 # Apply the parameterized RY and RZ gates to each wire
-                self.rz_layers1[l * self.n_wires + wire](q_device, wires=wire)
-                self.ry_layers[l * self.n_wires + wire](q_device, wires=wire) 
-                self.rz_layers2[l * self.n_wires + wire](q_device, wires=wire)
+                
+                rz1_gate = getattr(self, f"rz1_layer{l}_wire{wire}")
+                ry_gate = getattr(self, f"ry_layer{l}_wire{wire}")
+                rz2_gate = getattr(self, f"rz2_layer{l}_wire{wire}")
+                
+                rz1_gate(q_device, wires=wire)
+                ry_gate(q_device, wires=wire)
+                rz2_gate(q_device, wires=wire)
             
-            # Apply CZ gates between all pairs of qubits
-            for i in range(self.n_wires):
-                for j in range(i + 1, self.n_wires):
-                    self.cz(q_device, wires=[i, j])
+            for wire in range(self.n_wires - 1):
+                cz_gate = getattr(self, f"cz_layer{l}_wires{wire}_{wire + 1}")
+                cz_gate(q_device, wires=[wire, wire + 1])
 
         if measure: return tq.measurements.measure(q_device, n_shots=1024)
         else: return q_device.get_states_1d()
@@ -88,57 +95,76 @@ def calculate_probabilities(statevector, target_eigenvectors_denary):
 # Define your parameters
 n_wires = 5
 n_layers = 3
-n_epochs = 10
+n_epochs = 100
+batch_size = 100
+n_training_samples = 100
 
-model = QuantumLayer(n_wires=n_wires, n_layers=n_layers)
+q_device = tq.QuantumDevice(n_wires=n_wires)
+circuit = QuantumCircuit(n_wires=n_wires, n_layers=n_layers)
 
-# Apply the quantum circuit to the QuantumDevice
 criterion = NegativeLogSumCriterion()
-optimizer = optim.Adam(model.parameters(), lr=0.01)
+optimizer = optim.Adam(circuit.parameters(), lr=0.01)
 
 dist = combinedNormals(-0.75, 0.1, 0.75, 0.1)
-training_samples = toClosestEigenstate(torch.from_numpy(dist.rvs(size=50)), n_wires, -1, 1)
+training_samples = toClosestEigenstate(torch.from_numpy(dist.rvs(size=n_training_samples)), n_wires, -1, 1)
 dataset = TensorDataset(training_samples)
-data_loader = DataLoader(dataset=dataset, batch_size=5, shuffle=True)
+data_loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
 losses = []
+loss = 0
 
-# for epoch in range(n_epochs):
-#     optimizer.zero_grad()
-#     for batch_samples in data_loader:  
-#         output = model()
-#         model_probabilities = calculate_probabilities(output, batch_samples[0])
-#         true_probabilities = dist.pdf_list(evenlySpaceEigenstates(batch_samples[0], n_wires, -1, 1))
-#         loss = criterion(model_probabilities)
-#         losses.append(loss.item())
-#         loss.backward()
+for epoch in range(n_epochs):
+    optimizer.zero_grad()
+    for batch_samples in data_loader:  
+        output = circuit(q_device=q_device)
+        model_probabilities = calculate_probabilities(output, batch_samples[0])
+        true_probabilities = dist.pdf_list(evenlySpaceEigenstates(batch_samples[0], n_wires, -1, 1))
+        loss = criterion(model_probabilities)
+        loss.backward()
 
-#         optimizer.step()
-#     print(epoch)
+        optimizer.step()
+    losses.append(loss.item())
+    print(epoch)
 
-print(model)
+qiskit_circuit = tq2qiskit(q_device, circuit)
+circuit_drawer(qiskit_circuit, output='mpl', style={'name': 'bw'})
 
+plt.show()
 
 
 # Plotting the loss over time
-# plt.plot(range(n_epochs*10), losses)
-# plt.xlabel('Epoch')
-# plt.ylabel('Loss')
-# plt.title('Loss over Time')
-# plt.show()
+plt.plot(range(n_epochs), losses)
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.title('Loss over Time')
+plt.show()
 
-# data = model(measure=True)[0]
+measurements = circuit(q_device=q_device, measure=True)
+data = measurements[0]
+
+expanded_data = []
+for key, freq in data.items():
+    value = evenlySpaceEigenstates(key, n_wires, -1, 1)
+    expanded_data.extend([value] * freq)
+
+# Convert to 2D array for KDE
+expanded_data = np.array(expanded_data).reshape(-1, 1)
 
 # Extract keys and values
-# states = [evenlySpaceEigenstates(bitstring, n_wires, -1, 1) for bitstring in data.keys()]
-# counts = list(data.values())
+states = [evenlySpaceEigenstates(bitstring, n_wires, -1, 1) for bitstring in data.keys()]
+counts = list(data.values())
+kde = KernelDensity(kernel='gaussian', bandwidth=0.1).fit(np.array(expanded_data).reshape(-1, 1))
 
-# x_values = np.linspace(-1, 1, 1000)
 
-# pdf_values = 0.5*(norm.pdf(x_values, loc=-0.75, scale=0.1) + norm.pdf(x_values, loc=0.75, scale=0.1))
-# fig, ax1 = plt.subplots()
+x_values = np.linspace(-1, 1, 1000)
 
-# ax1.bar(states, counts)
-# ax2 = ax1.twinx()
-# ax2.plot(x_values, pdf_values, color='g', label="PDF of Sum of Normals")
+pdf_values = 0.5*(norm.pdf(x_values, loc=-0.75, scale=0.1) + norm.pdf(x_values, loc=0.75, scale=0.1))
+kde_values = np.exp(kde.score_samples(x_values.reshape(-1, 1)))
 
-# plt.show()
+fig, ax1 = plt.subplots()
+
+ax1.bar(states, counts)
+ax2 = ax1.twinx()
+ax2.plot(x_values, pdf_values, color='g', label="PDF of Sum of Normals")
+ax2.plot(x_values, kde_values, color="r", label="kde")
+
+plt.show()
