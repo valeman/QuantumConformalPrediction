@@ -8,20 +8,9 @@ from torchquantum.plugin import (
     tq2qiskit
 )
 
-qdev = tq.QuantumDevice(n_wires=2, bsz=5, device="cpu", record_op=True) # use device='cuda' for GPU
-# use qdev.op
-qdev.h(wires=0)
-qdev.cnot(wires=[0, 1])
+import helper_functions
+from customDistribution import combinedNormals
 
-# use tqf
-tqf.h(qdev, wires=1)
-tqf.x(qdev, wires=1)
+x = helper_functions.toClosestEigenstate(1, 5, -1, 1)
 
-# use tq.Operator
-op = tq.RX(has_params=True, trainable=True, init_params=0.5)
-op(qdev, wires=0)
-print(qdev)
-measurement_circ = tq2qiskit(qdev)
-
-
-# print the current state (dynamic computation graph supported)
+print(x)

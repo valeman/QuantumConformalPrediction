@@ -94,10 +94,10 @@ def calculate_probabilities(statevector, target_eigenvectors_denary):
 
 # Define your parameters
 n_wires = 5
-n_layers = 3
-n_epochs = 100
-batch_size = 100
-n_training_samples = 100
+n_layers = 2
+n_epochs = 50
+batch_size = 20
+n_training_samples = 50
 
 q_device = tq.QuantumDevice(n_wires=n_wires)
 circuit = QuantumCircuit(n_wires=n_wires, n_layers=n_layers)
@@ -106,7 +106,7 @@ criterion = NegativeLogSumCriterion()
 optimizer = optim.Adam(circuit.parameters(), lr=0.01)
 
 dist = combinedNormals(-0.75, 0.1, 0.75, 0.1)
-training_samples = toClosestEigenstate(torch.from_numpy(dist.rvs(size=n_training_samples)), n_wires, -1, 1)
+training_samples = toClosestEigenstate(torch.from_numpy(dist.rvs(size=n_training_samples)), n_wires, -1.5, 1.5)
 dataset = TensorDataset(training_samples)
 data_loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
 losses = []
@@ -117,7 +117,7 @@ for epoch in range(n_epochs):
     for batch_samples in data_loader:  
         output = circuit(q_device=q_device)
         model_probabilities = calculate_probabilities(output, batch_samples[0])
-        true_probabilities = dist.pdf_list(evenlySpaceEigenstates(batch_samples[0], n_wires, -1, 1))
+        true_probabilities = dist.pdf_list(evenlySpaceEigenstates(batch_samples[0], n_wires, -1.5, 1.5))
         loss = criterion(model_probabilities)
         loss.backward()
 
@@ -143,14 +143,14 @@ data = measurements[0]
 
 expanded_data = []
 for key, freq in data.items():
-    value = evenlySpaceEigenstates(key, n_wires, -1, 1)
+    value = evenlySpaceEigenstates(key, n_wires, -1.5, 1.5)
     expanded_data.extend([value] * freq)
 
 # Convert to 2D array for KDE
 expanded_data = np.array(expanded_data).reshape(-1, 1)
 
 # Extract keys and values
-states = [evenlySpaceEigenstates(bitstring, n_wires, -1, 1) for bitstring in data.keys()]
+states = [evenlySpaceEigenstates(bitstring, n_wires, -1.5, 1.5) for bitstring in data.keys()]
 counts = list(data.values())
 kde = KernelDensity(kernel='gaussian', bandwidth=0.1).fit(np.array(expanded_data).reshape(-1, 1))
 
