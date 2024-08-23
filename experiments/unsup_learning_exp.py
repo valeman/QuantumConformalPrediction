@@ -59,12 +59,12 @@ def unsup_learning_exp():
         expanded_data.extend([value] * freq)
     expanded_data = np.array(expanded_data).reshape(-1, 1)
     kde = KernelDensity(kernel='gaussian', bandwidth=0.1).fit(np.array(expanded_data).reshape(-1, 1))
+    kde_values = np.exp(kde.score_samples(x_values.reshape(-1, 1)))
     ax2.plot(x_values, kde_values, color="r", label="KDE of Measurements")
 
 
     # plot true distribution
     pdf_values = 0.5*(norm.pdf(x_values, loc=-0.75, scale=0.1) + norm.pdf(x_values, loc=0.75, scale=0.1))
-    kde_values = np.exp(kde.score_samples(x_values.reshape(-1, 1)))
     ax2.plot(x_values, pdf_values, color='g', label="True Distribution")
 
     plt.show()

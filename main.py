@@ -1,0 +1,3 @@
+from experiments.unsup_learning_exp import unsup_learning_exp
+
+unsup_learning_exp()
