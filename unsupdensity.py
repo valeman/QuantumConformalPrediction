@@ -7,17 +7,18 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 import torch.optim as optim
-from customDistribution import combinedNormals
+from utils.customDistribution import combinedNormals
 
 from torch.utils.data import DataLoader, TensorDataset
-from helper_functions import evenlySpaceEigenstates, toClosestEigenstate
+from utils.helper_functions import evenlySpaceEigenstates, toClosestEigenstate
 
 from torchquantum.plugin import tq2qiskit
 from qiskit.visualization import circuit_drawer
 from sklearn.neighbors import KernelDensity
-from circuits.HardwareEfficientWithoutInput import HardwareEfficientWithoutInput, NegativeLogSumCriterion
+from models.hardware_eff_no_input import HardwareEfficientNoInput
+from training.metrics import NegativeLogSumCriterion
 
-
+import torch.nn as nn
 
 
 
@@ -48,7 +49,7 @@ batch_size = 20
 n_training_samples = 50
 
 q_device = tq.QuantumDevice(n_wires=n_wires)
-circuit = HardwareEfficientWithoutInput(n_wires=n_wires, n_layers=n_layers)
+circuit = HardwareEfficientNoInput(n_wires=n_wires, n_layers=n_layers)
 
 criterion = NegativeLogSumCriterion()
 optimizer = optim.Adam(circuit.parameters(), lr=0.01)

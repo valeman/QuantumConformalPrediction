@@ -1,7 +1,4 @@
-class InformalInterfaceConformalProcedure:
-    def trainModel():
-        pass
-
+class BaseConformalProcedure:
     def computeQuantile():
         pass
 

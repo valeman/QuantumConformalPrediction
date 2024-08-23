@@ -1,11 +1,11 @@
 import torchquantum as tq
 import torch
 import torch.nn as nn
+from models.base_model import BaseModel
 
-
-class HardwareEfficientWithoutInput(tq.QuantumModule):
+class HardwareEfficientNoInput(tq.QuantumModule, BaseModel):
     def __init__(self, n_wires, n_layers):
-        super(HardwareEfficientWithoutInput, self).__init__()
+        super(HardwareEfficientNoInput, self).__init__()
         self.q_device = tq.QuantumDevice(n_wires=n_wires, bsz=1)  # Batch size set to 1 for simplicity
         self.n_layers = n_layers
         self.n_wires = n_wires
@@ -48,12 +48,3 @@ class HardwareEfficientWithoutInput(tq.QuantumModule):
         else: return q_device.get_states_1d()
 
 
-class NegativeLogSumCriterion(nn.Module):
-    def __init__(self):
-        super(NegativeLogSumCriterion, self).__init__()
-
-    def forward(self, input_tensor):
-        clamped_tensor = torch.clamp(input_tensor, min=0.01)
-        log_tensor = torch.log(clamped_tensor)
-        sum_log = torch.sum(log_tensor)
-        return -sum_log
