@@ -1,6 +1,6 @@
 import torch
-
 import torch.nn as nn
+
 class NegativeLogSumCriterion(nn.Module):
     def __init__(self):
         super(NegativeLogSumCriterion, self).__init__()

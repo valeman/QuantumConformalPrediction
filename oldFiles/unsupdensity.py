@@ -15,7 +15,7 @@ from utils.helper_functions import evenlySpaceEigenstates, toClosestEigenstate
 from torchquantum.plugin import tq2qiskit
 from qiskit.visualization import circuit_drawer
 from sklearn.neighbors import KernelDensity
-from models.hardware_eff_no_input import HardwareEfficientNoInput
+from circuits.hardware_eff_no_input import HardwareEfficientNoInput
 from training.metrics import NegativeLogSumCriterion
 
 import torch.nn as nn
@@ -71,8 +71,8 @@ for epoch in range(n_epochs):
         loss.backward()
 
         optimizer.step()
-    losses.append(loss.item())
-    print(epoch)
+        losses.append(loss.item())
+        print(epoch)
 
 qiskit_circuit = tq2qiskit(q_device, circuit)
 circuit_drawer(qiskit_circuit, output='mpl', style={'name': 'bw'})
@@ -81,7 +81,7 @@ plt.show()
 
 
 # Plotting the loss over time
-plt.plot(range(n_epochs), losses)
+plt.plot(range(150), losses)
 plt.xlabel('Epoch')
 plt.ylabel('Loss')
 plt.title('Loss over Time')

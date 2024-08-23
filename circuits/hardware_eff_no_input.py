@@ -1,7 +1,5 @@
 import torchquantum as tq
-import torch
-import torch.nn as nn
-from models.base_model import BaseModel
+from circuits.base_model import BaseModel
 
 class HardwareEfficientNoInput(tq.QuantumModule, BaseModel):
     def __init__(self, n_wires, n_layers):

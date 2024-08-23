@@ -1,6 +1,4 @@
 import torch
-
-
 def calculate_probabilities(statevector, target_eigenvectors_denary):
     """
     Calculates the probabilities of target eigenvectors from a given statevector.

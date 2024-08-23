@@ -7,7 +7,6 @@ class BaseTrainer:
         self.data_loader = data_loader
 
     def train_one_epoch(self):
-        # Logic for training one epoch
         pass
 
     def train(self):
