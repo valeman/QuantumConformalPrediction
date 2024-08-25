@@ -11,7 +11,17 @@ N_EPOCHS = 70
 BATCH_SIZE = 20
 N_TRAINING_SAMPLES = 50
 
-# must be in qtvenv
+
+## the aim of the new code is to be able to run a set of commands like the below
+# CPprocedure = ConformalPredictionProcedure(callibration_data, 
+#                                            "circuit_file_name.qpy", 
+#                                            "IBMQ-M3", 
+#                                            "QCP k=1", 
+#                                            alpha)
+# CPprocedure.compute_quantile()
+# CPprocedure.generate_prediction_set(test_x)
+
+# MUST BE IN QTVENV
 def train_and_save_model(save_pqc_file_name, plot_results=False):
     import torchquantum as tq
     from torchquantum.plugin import tq2qiskit 
@@ -47,45 +57,40 @@ def train_and_save_model(save_pqc_file_name, plot_results=False):
 
     if plot_results: plot_tq_sim_measurements(q_device, trained_pqc)
 
-# must be in qiskitvenv
-def run_on_ibm_quantum(load_pqc_file_name):
+# MUST BE IN QISKITVENV
+def run_on_ibm_quantum(load_pqc_file_name, n_shots=100):
     from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
-    from qiskit.circuit.library import GroverOperator, Diagonal
-
     from qiskit.quantum_info import Statevector
     from qiskit.visualization import plot_histogram
-
-    from qiskit_ibm_runtime import QiskitRuntimeService, Batch
+    from qiskit_ibm_runtime import QiskitRuntimeService
     from qiskit_ibm_runtime import SamplerV2 as Sampler
 
+    # retrive qiskit circuit from file and reverse bits (to align with torchquantum)
     with open("./circuits/savedQiskitCircuits/" + load_pqc_file_name, 'rb') as handle:
         qc = qpy.load(handle)[0]
         qc = qc.reverse_bits()
     
+    # select ibm backend
     service = QiskitRuntimeService(channel="ibm_quantum")
     backend = service.least_busy(operational=True, simulator=False)
     ideal_distribution = Statevector.from_instruction(qc).probabilities_dict()
-    # Need to add measurements to the circuit
 
+    # add qubit measurements to the circuit
     qc.measure_all()
-    pass_manager = generate_preset_pass_manager(3, backend=backend, seed_transpiler=0)
-    transpiled_qc = pass_manager.run(qc)
-    
-    print("running measurements on:", backend.name)
-    with Batch(backend=backend):
-        sampler = Sampler()
-        job = sampler.run(
-            [transpiled_qc],
-            shots=8000
-        )
-        result = job.result()
 
-    # run most recent job
-    # successful_job = next(j for j in service.jobs() if j.status().name == "DONE")
-    # job_id = successful_job.job_id()
-    # print(job_id)
-    # result = service.job(job_id).result()
+    # transpile the circuit
+    pass_manager = generate_preset_pass_manager(3, backend=backend, seed_transpiler=0)
+    isa_qc = pass_manager.run(qc)
     
+    # run sampler
+    print("running measurements on:", backend.name)    
+    sampler = Sampler(mode=backend)
+    job = sampler.run([isa_qc], shots=n_shots)
+    print(f">>> Job ID: {job.job_id()}")
+    print(f">>> Job Status: {job.status()}")
+    result = job.result()
+    
+    # plot histogram of samples against ideal distribution
     binary_prob = [{k: v / res.data.meas.num_shots for k, v in res.data.meas.get_counts().items()} for res in result]
     plot_histogram(
     binary_prob + [ideal_distribution],
@@ -96,6 +101,7 @@ def run_on_ibm_quantum(load_pqc_file_name):
     ],)
     plt.show()
 
+# MUST BE IN QTVENV
 def plot_tq_sim_measurements(q_device, trained_pqc):
     from sklearn.neighbors import KernelDensity
     from utils.helper_functions import evenlySpaceEigenstates 
