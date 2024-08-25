@@ -2,7 +2,7 @@ from qiskit import qpy
 import numpy as np
 import matplotlib.pyplot as plt
 from qiskit.visualization import circuit_drawer
-
+from CPProcedure.CP_procedure import ConformalPredictionProcedure
 
 
 N_WIRES = 5
@@ -20,6 +20,11 @@ N_TRAINING_SAMPLES = 50
 #                                            alpha)
 # CPprocedure.compute_quantile()
 # CPprocedure.generate_prediction_set(test_x)
+# MUST BE IN QISKITVENV
+
+def run_on_ibm_quantum(load_pqc_file_name, n_shots=100):
+    CP_procedure = ConformalPredictionProcedure(None, "pqc_circuit.qpy", "IBMQ", None, None, n_shots)
+    CP_procedure.runTrainedModel()
 
 # MUST BE IN QTVENV
 def train_and_save_model(save_pqc_file_name, plot_results=False):
@@ -57,49 +62,6 @@ def train_and_save_model(save_pqc_file_name, plot_results=False):
 
     if plot_results: plot_tq_sim_measurements(q_device, trained_pqc)
 
-# MUST BE IN QISKITVENV
-def run_on_ibm_quantum(load_pqc_file_name, n_shots=100):
-    from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
-    from qiskit.quantum_info import Statevector
-    from qiskit.visualization import plot_histogram
-    from qiskit_ibm_runtime import QiskitRuntimeService
-    from qiskit_ibm_runtime import SamplerV2 as Sampler
-
-    # retrive qiskit circuit from file and reverse bits (to align with torchquantum)
-    with open("./circuits/savedQiskitCircuits/" + load_pqc_file_name, 'rb') as handle:
-        qc = qpy.load(handle)[0]
-        qc = qc.reverse_bits()
-    
-    # select ibm backend
-    service = QiskitRuntimeService(channel="ibm_quantum")
-    backend = service.least_busy(operational=True, simulator=False)
-    ideal_distribution = Statevector.from_instruction(qc).probabilities_dict()
-
-    # add qubit measurements to the circuit
-    qc.measure_all()
-
-    # transpile the circuit
-    pass_manager = generate_preset_pass_manager(3, backend=backend, seed_transpiler=0)
-    isa_qc = pass_manager.run(qc)
-    
-    # run sampler
-    print("running measurements on:", backend.name)    
-    sampler = Sampler(mode=backend)
-    job = sampler.run([isa_qc], shots=n_shots)
-    print(f">>> Job ID: {job.job_id()}")
-    print(f">>> Job Status: {job.status()}")
-    result = job.result()
-    
-    # plot histogram of samples against ideal distribution
-    binary_prob = [{k: v / res.data.meas.num_shots for k, v in res.data.meas.get_counts().items()} for res in result]
-    plot_histogram(
-    binary_prob + [ideal_distribution],
-    bar_labels=False,
-    legend=[
-        "optimization_level=3",
-        "ideal distribution",
-    ],)
-    plt.show()
 
 # MUST BE IN QTVENV
 def plot_tq_sim_measurements(q_device, trained_pqc):
