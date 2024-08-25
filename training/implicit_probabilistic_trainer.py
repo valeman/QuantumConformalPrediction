@@ -1,4 +1,3 @@
-# model_a_trainer.py
 from torch.utils.data import DataLoader
 import torch.optim as optim
 import matplotlib.pyplot as plt
@@ -17,7 +16,7 @@ class BackpropogationTrainer(BaseTrainer):
     def train_one_epoch(self):
         total_loss = 0
         for batch_samples in self.data_loader:
-            output = self.pqc(q_device=self.q_device)
+            output = self.pqc(q_device=self.q_device, measure=True)
             model_probabilities = calculate_probabilities(output, batch_samples[0])
             loss = self.criterion(model_probabilities)
             total_loss += loss.item()

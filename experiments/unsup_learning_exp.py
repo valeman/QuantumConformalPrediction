@@ -32,7 +32,8 @@ def train_and_save_model(save_pqc_file_name, plot_results=False):
     from torchquantum.plugin import tq2qiskit 
     from torch.utils.data import TensorDataset
     import torch
-    from training.unsup_density_trainer import BackpropogationTrainer
+    import torch.nn as nn
+    from training.implicit_probabilistic_trainer import BackpropogationTrainer
     from circuits import HardwareEfficientNoInput
     from utils import combinedNormals
     from utils.helper_functions import toClosestEigenstate 
@@ -69,6 +70,7 @@ def plot_tq_sim_measurements(q_device, trained_pqc):
     from utils.helper_functions import evenlySpaceEigenstates 
     from scipy.stats import norm
     from qiskit.visualization import plot_histogram
+
     # measure with torchquantum simulator
     measurements = trained_pqc(q_device=q_device, measure=True)
     data = measurements[0]
