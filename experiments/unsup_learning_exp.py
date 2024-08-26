@@ -27,17 +27,14 @@ def run_on_ibm_quantum(load_pqc_file_name, n_shots=100):
     CP_procedure.runTrainedModel()
 
 # MUST BE IN QTVENV
-def train_and_save_model(save_pqc_file_name, plot_results=False, deterministic=False):
+def train_and_save_model(save_pqc_file_name, plot_results=False):
     import torchquantum as tq
     from torchquantum.plugin import tq2qiskit 
     from torch.utils.data import TensorDataset
     import torch
     import torch.nn as nn
 
-    if deterministic:
-        from training.deterministic_trainer import BackpropogationTrainer
-    else:
-        from training.implicit_probabilistic_trainer import BackpropogationTrainer
+
         
     from circuits import HardwareEfficientNoInput
     from utils import combinedNormals
@@ -53,11 +50,14 @@ def train_and_save_model(save_pqc_file_name, plot_results=False, deterministic=F
     # create and train pqc
     pqc = HardwareEfficientNoInput(n_wires=N_WIRES, n_layers=N_LAYERS)
 
-    if deterministic:
-        eigenvalues = evenlySpaceEigenstates(torch.arange(start=0, end= 2**N_WIRES, step=1), N_WIRES, -1.5, 1.5)
-        trainer = BackpropogationTrainer(pqc, q_device, dataset, eigenvalues, BATCH_SIZE)
-    else:
-        trainer = BackpropogationTrainer(pqc, q_device, dataset, BATCH_SIZE)
+    #DETERMINISTIC PQC
+    # from training.deterministic_trainer import BackpropogationTrainer
+    # eigenvalues = evenlySpaceEigenstates(torch.arange(start=0, end= 2**N_WIRES, step=1), N_WIRES, -1.5, 1.5)
+    # trainer = BackpropogationTrainer(pqc, q_device, dataset, BATCH_SIZE, eigenvalues)
+
+    #IMPLICIT PROBABILISTIC PQC
+    from training.implicit_probabilistic_trainer import BackpropogationTrainer
+    trainer = BackpropogationTrainer(pqc, q_device, dataset, BATCH_SIZE)
 
     trained_pqc = trainer.train(plot_loss=plot_results, n_epochs=N_EPOCHS)
     qiskit_circuit = tq2qiskit(q_device, trained_pqc)
@@ -81,7 +81,7 @@ def plot_tq_sim_measurements(q_device, trained_pqc):
     from qiskit.visualization import plot_histogram
 
     # measure with torchquantum simulator
-    measurements = trained_pqc(q_device=q_device, measure=True)
+    measurements = trained_pqc.sample_from_model(1000)
     data = measurements[0]
 
     # create axes

@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 from training.base_trainer import BaseTrainer
 from training.metrics import NegativeLogSumCriterion
-from circuits.utils import calculate_probabilities
+from circuits.hardware_eff_no_input import *
 
 class BackpropogationTrainer(BaseTrainer):
     def __init__(self, pqc, q_device, dataset, batch_size, optimizer=None, criterion=None):
@@ -16,8 +16,7 @@ class BackpropogationTrainer(BaseTrainer):
     def train_one_epoch(self):
         total_loss = 0
         for batch_samples in self.data_loader:
-            output = self.pqc(q_device=self.q_device, measure=True)
-            model_probabilities = calculate_probabilities(output, batch_samples[0])
+            model_probabilities = self.pqc.calculate_probabilities(batch_samples[0])
             loss = self.criterion(model_probabilities)
             total_loss += loss.item()
             loss.backward()

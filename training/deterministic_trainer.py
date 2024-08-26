@@ -8,9 +8,10 @@ from circuits.utils import calculate_expectation
 import torch
 import torch.nn as nn
 from utils.helper_functions import evenlySpaceEigenstates
+from circuits.hardware_eff_no_input import *
 
 class BackpropogationTrainer(BaseTrainer):
-    def __init__(self, pqc, q_device, dataset, eigenvalues, batch_size, optimizer=None, criterion=None):
+    def __init__(self, pqc, q_device, dataset, batch_size, eigenvalues, optimizer=None, criterion=None):
         if optimizer is None: optimizer = optim.Adam(pqc.parameters(), lr=0.01)
         if criterion is None: criterion = nn.MSELoss()
         data_loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
@@ -20,8 +21,7 @@ class BackpropogationTrainer(BaseTrainer):
     def train_one_epoch(self):
         total_loss = 0
         for batch_samples in self.data_loader:
-            output = self.pqc(q_device=self.q_device)
-            expectation = calculate_expectation(output, self.eigenvalues)
+            expectation = self.pqc.calculate_expected_value(self.eigenvalues)
             loss = self.criterion(expectation.repeat(batch_samples[0].size(0)), evenlySpaceEigenstates(batch_samples[0], self.pqc.n_wires, -1.5, 1.5))
             total_loss += loss.item()
             loss.backward()
