@@ -2,7 +2,7 @@ from qiskit import qpy
 import numpy as np
 import matplotlib.pyplot as plt
 from qiskit.visualization import circuit_drawer
-from CPProcedure.CP_procedure import ConformalPredictionProcedure
+# from CPProcedure.CP_procedure import ConformalPredictionProcedure
 
 
 N_WIRES = 5
@@ -27,16 +27,21 @@ def run_on_ibm_quantum(load_pqc_file_name, n_shots=100):
     CP_procedure.runTrainedModel()
 
 # MUST BE IN QTVENV
-def train_and_save_model(save_pqc_file_name, plot_results=False):
+def train_and_save_model(save_pqc_file_name, plot_results=False, deterministic=False):
     import torchquantum as tq
     from torchquantum.plugin import tq2qiskit 
     from torch.utils.data import TensorDataset
     import torch
     import torch.nn as nn
-    from training.implicit_probabilistic_trainer import BackpropogationTrainer
+
+    if deterministic:
+        from training.deterministic_trainer import BackpropogationTrainer
+    else:
+        from training.implicit_probabilistic_trainer import BackpropogationTrainer
+        
     from circuits import HardwareEfficientNoInput
     from utils import combinedNormals
-    from utils.helper_functions import toClosestEigenstate 
+    from utils.helper_functions import toClosestEigenstate, evenlySpaceEigenstates
 
     # create training data
     dist = combinedNormals(-0.75, 0.1, 0.75, 0.1)
@@ -48,7 +53,12 @@ def train_and_save_model(save_pqc_file_name, plot_results=False):
     # create and train pqc
     pqc = HardwareEfficientNoInput(n_wires=N_WIRES, n_layers=N_LAYERS)
 
-    trainer = BackpropogationTrainer(pqc, q_device, dataset, BATCH_SIZE)
+    if deterministic:
+        eigenvalues = evenlySpaceEigenstates(torch.arange(start=0, end= 2**N_WIRES, step=1), N_WIRES, -1.5, 1.5)
+        trainer = BackpropogationTrainer(pqc, q_device, dataset, eigenvalues, BATCH_SIZE)
+    else:
+        trainer = BackpropogationTrainer(pqc, q_device, dataset, BATCH_SIZE)
+
     trained_pqc = trainer.train(plot_loss=plot_results, n_epochs=N_EPOCHS)
     qiskit_circuit = tq2qiskit(q_device, trained_pqc)
 
@@ -62,7 +72,6 @@ def train_and_save_model(save_pqc_file_name, plot_results=False):
         qpy.dump(qiskit_circuit, file)
 
     if plot_results: plot_tq_sim_measurements(q_device, trained_pqc)
-
 
 # MUST BE IN QTVENV
 def plot_tq_sim_measurements(q_device, trained_pqc):

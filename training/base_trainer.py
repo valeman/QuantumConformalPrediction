@@ -5,7 +5,6 @@ class BaseTrainer:
         self.optimizer = optimizer
         self.criterion = criterion
         self.data_loader = data_loader
-
     def train_one_epoch(self):
         pass
 

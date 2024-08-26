@@ -22,7 +22,7 @@ class HardwareEfficientNoInput(tq.QuantumModule, BaseModel):
 
 
     @tq.static_support
-    def forward(self, q_device=None, measure=False, reset_states=True):
+    def forward(self, q_device=None, measure=False, reset_states=True, n_shots=1024):
         if q_device == None: q_device = self.q_device
         if reset_states: q_device.reset_states(1)
 
@@ -42,7 +42,7 @@ class HardwareEfficientNoInput(tq.QuantumModule, BaseModel):
                 cz_gate = getattr(self, f"cz_layer{l}_wires{wire}_{wire + 1}")
                 cz_gate(q_device, wires=[wire, wire + 1])
 
-        if measure: return tq.measurements.measure(q_device, n_shots=1024)
+        if measure: return tq.measurements.measure(q_device, n_shots=n_shots)
         else: return q_device.get_states_1d()
 
 

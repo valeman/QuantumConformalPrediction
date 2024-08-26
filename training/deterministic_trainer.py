@@ -4,23 +4,25 @@ import matplotlib.pyplot as plt
 
 from training.base_trainer import BaseTrainer
 from training.metrics import NegativeLogSumCriterion
-from circuits.utils import calculate_probabilities
+from circuits.utils import calculate_expectation
 import torch
 import torch.nn as nn
+from utils.helper_functions import evenlySpaceEigenstates
 
-class DeterministicBackpropogationTrainer(BaseTrainer):
-    def __init__(self, pqc, q_device, dataset, batch_size, optimizer=None, criterion=None):
+class BackpropogationTrainer(BaseTrainer):
+    def __init__(self, pqc, q_device, dataset, eigenvalues, batch_size, optimizer=None, criterion=None):
         if optimizer is None: optimizer = optim.Adam(pqc.parameters(), lr=0.01)
         if criterion is None: criterion = nn.MSELoss()
         data_loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
         super().__init__(pqc, q_device, optimizer, criterion, data_loader)
+        self.eigenvalues = eigenvalues
 
     def train_one_epoch(self):
         total_loss = 0
         for batch_samples in self.data_loader:
             output = self.pqc(q_device=self.q_device)
-            model_probabilities = calculate_probabilities(output, batch_samples[0])
-            loss = self.criterion(model_probabilities)
+            expectation = calculate_expectation(output, self.eigenvalues)
+            loss = self.criterion(expectation.repeat(batch_samples[0].size(0)), evenlySpaceEigenstates(batch_samples[0], self.pqc.n_wires, -1.5, 1.5))
             total_loss += loss.item()
             loss.backward()
             self.optimizer.step()
