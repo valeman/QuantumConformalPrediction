@@ -27,7 +27,7 @@ def run_on_ibm_quantum(load_pqc_file_name, n_shots=100):
     CP_procedure.runTrainedModel()
 
 # MUST BE IN QTVENV
-def train_and_save_model(save_pqc_file_name, plot_results=False):
+def train_and_save_model(save_pqc_file_name, model_type, plot_results=True):
     import torchquantum as tq
     from torchquantum.plugin import tq2qiskit 
     from torch.utils.data import TensorDataset
@@ -50,18 +50,18 @@ def train_and_save_model(save_pqc_file_name, plot_results=False):
     # create and train pqc
     pqc = HardwareEfficientNoInput(n_wires=N_WIRES, n_layers=N_LAYERS)
 
-    #DETERMINISTIC PQC
-    from training.deterministic_trainer import BackpropogationTrainer
-    eigenvalues = evenlySpaceEigenstates(torch.arange(start=0, end= 2**N_WIRES, step=1), N_WIRES, -1.5, 1.5)
-    trainer = BackpropogationTrainer(pqc, q_device, dataset, BATCH_SIZE, eigenvalues)
-
-    #IMPLICIT PROBABILISTIC PQC
-    # from training.implicit_probabilistic_trainer import BackpropogationTrainer
-    # trainer = BackpropogationTrainer(pqc, q_device, dataset, BATCH_SIZE)
+    if model_type == "IP":
+        from training.implicit_probabilistic_trainer import BackpropogationTrainer
+        trainer = BackpropogationTrainer(pqc, q_device, dataset, BATCH_SIZE)
+    elif model_type == "D":
+        from training.deterministic_trainer import BackpropogationTrainer
+        eigenvalues = evenlySpaceEigenstates(torch.arange(start=0, end= 2**N_WIRES, step=1), N_WIRES, -1.5, 1.5)
+        trainer = BackpropogationTrainer(pqc, q_device, dataset, BATCH_SIZE, eigenvalues)
+    else:
+        raise ValueError("D or IP for model type")
 
     trained_pqc = trainer.train(plot_loss=plot_results, n_epochs=N_EPOCHS)
     qiskit_circuit = tq2qiskit(q_device, trained_pqc)
-
     # with open("./circuits/savedQiskitCircuits/" + save_pqc_file_name, 'rb') as handle:
     #     qiskit_circuit = qpy.load(handle)
  
