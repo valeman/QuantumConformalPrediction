@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 
 from training.base_trainer import BaseTrainer
 from training.metrics import NegativeLogSumCriterion
-from circuits.utils import calculate_expectation
 import torch
 import torch.nn as nn
 from utils.helper_functions import evenlySpaceEigenstates

@@ -74,16 +74,10 @@ class HardwareEfficientNoInput(tq.QuantumModule, BaseModel):
         """
         # Prepare the quantum state without measurement
         self.forward()
-
-        # Define the observable
-        pauli_operators = [tq.PauliZ(wires=0)]
-        observable = tq.Observable(eigenvalues=eigenvalues, 
-                            observables=pauli_operators,
-                            has_params=False, 
-                            trainable=False) 
-        # Calculate the expectation value
-        expectation_value = self.q_device.expval_joint_analytical(observable)
-        return expectation_value
+        statevector = self.q_device.get_states_1d().flatten()
+        return torch.dot(statevector.abs()**2, eigenvalues)
+            
+ 
 
     def sample_from_model(self, n_shots):
         """

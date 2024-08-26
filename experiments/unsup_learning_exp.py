@@ -51,13 +51,13 @@ def train_and_save_model(save_pqc_file_name, plot_results=False):
     pqc = HardwareEfficientNoInput(n_wires=N_WIRES, n_layers=N_LAYERS)
 
     #DETERMINISTIC PQC
-    # from training.deterministic_trainer import BackpropogationTrainer
-    # eigenvalues = evenlySpaceEigenstates(torch.arange(start=0, end= 2**N_WIRES, step=1), N_WIRES, -1.5, 1.5)
-    # trainer = BackpropogationTrainer(pqc, q_device, dataset, BATCH_SIZE, eigenvalues)
+    from training.deterministic_trainer import BackpropogationTrainer
+    eigenvalues = evenlySpaceEigenstates(torch.arange(start=0, end= 2**N_WIRES, step=1), N_WIRES, -1.5, 1.5)
+    trainer = BackpropogationTrainer(pqc, q_device, dataset, BATCH_SIZE, eigenvalues)
 
     #IMPLICIT PROBABILISTIC PQC
-    from training.implicit_probabilistic_trainer import BackpropogationTrainer
-    trainer = BackpropogationTrainer(pqc, q_device, dataset, BATCH_SIZE)
+    # from training.implicit_probabilistic_trainer import BackpropogationTrainer
+    # trainer = BackpropogationTrainer(pqc, q_device, dataset, BATCH_SIZE)
 
     trained_pqc = trainer.train(plot_loss=plot_results, n_epochs=N_EPOCHS)
     qiskit_circuit = tq2qiskit(q_device, trained_pqc)
@@ -79,6 +79,7 @@ def plot_tq_sim_measurements(q_device, trained_pqc):
     from utils.helper_functions import evenlySpaceEigenstates 
     from scipy.stats import norm
     from qiskit.visualization import plot_histogram
+    import torch
 
     # measure with torchquantum simulator
     measurements = trained_pqc.sample_from_model(1000)
@@ -109,6 +110,12 @@ def plot_tq_sim_measurements(q_device, trained_pqc):
     # plot true distribution
     pdf_values = 0.5*(norm.pdf(x_values, loc=-0.75, scale=0.1) + norm.pdf(x_values, loc=0.75, scale=0.1))
     ax2.plot(x_values, pdf_values, color='g', label="True Distribution")
+
+
+    eigenvalues = evenlySpaceEigenstates(torch.arange(start=0, end= 2**N_WIRES, step=1), N_WIRES, -1.5, 1.5)
+    exp_val = trained_pqc.calculate_expected_value(eigenvalues).item()
+    ax2.axvline(x=exp_val, color='r', linestyle='--', label=f'expected_value = {exp_val}')
+
 
     plt.show()
 
