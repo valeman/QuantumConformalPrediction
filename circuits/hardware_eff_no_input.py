@@ -1,6 +1,9 @@
 import torchquantum as tq
 import torch
 from circuits.angle_encodings import *
+import numpy as np
+import torchquantum.functional as tqf
+
 
 class HardwareEfficientNoInput(tq.QuantumModule):
     def __init__(self, n_wires, n_layers):
@@ -55,7 +58,6 @@ class HardwareEfficientNoInput(tq.QuantumModule):
             self.ry_layers[k](q_device)
             self.rz_layers2[k](q_device)
             self.cnot_layers[k](q_device)
-        
 
     def calculate_probabilities(self, target_eigenvectors_denary):
         """

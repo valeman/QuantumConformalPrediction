@@ -1,44 +1,23 @@
 import torchquantum as tq
 import torch
 from circuits.angle_encodings import *
+import numpy as np
+import torchquantum.functional as tqf
+from utils.helper_functions import evenlySpaceEigenstates
 
-class HardwareEfficientNoInput(tq.QuantumModule):
-    def __init__(self, n_wires, n_layers):
+
+class HardwareEfficientInput(tq.QuantumModule):
+    def __init__(self, n_wires, n_layers, bsz):
         super().__init__()
-        self.q_device = tq.QuantumDevice(n_wires=n_wires, bsz=1)
+        self.q_device = tq.QuantumDevice(n_wires=n_wires, bsz=bsz)
         self.n_wires = n_wires
         self.n_layers = n_layers
-        self.rz_layers1 = tq.QuantumModuleList()
-        self.ry_layers = tq.QuantumModuleList()
-        self.rz_layers2 = tq.QuantumModuleList()
-        self.cnot_layers = tq.QuantumModuleList()
+        self.bsz = bsz
+        self.angle_encoding = LearnedNonLinear(n_layers, n_wires)
+        self.cz_layers = tq.QuantumModuleList()
 
-        for _ in range(n_layers):
-            self.rz_layers1.append(
-                tq.Op1QAllLayer(
-                    op=tq.RZ,
-                    n_wires=n_wires,
-                    has_params=True,
-                    trainable=True,
-                )
-            )
-            self.ry_layers.append(
-                tq.Op1QAllLayer(
-                    op=tq.RY,
-                    n_wires=n_wires,
-                    has_params=True,
-                    trainable=True,
-                )
-            )
-            self.rz_layers2.append(
-                tq.Op1QAllLayer(
-                    op=tq.RZ,
-                    n_wires=n_wires,
-                    has_params=True,
-                    trainable=True,
-                )
-            )
-            self.cnot_layers.append(
+        for k in range(n_layers):
+            self.cz_layers.append(
                 tq.Op2QAllLayer(
                     op=tq.CZ,
                     n_wires=n_wires,
@@ -47,17 +26,29 @@ class HardwareEfficientNoInput(tq.QuantumModule):
                     circular=False,
                 )
             )
-    def forward(self, q_device=None):
-        q_device = self.q_device if q_device == None else q_device
-        q_device.reset_states(1)
-        for k in range(self.n_layers):
-            self.rz_layers1[k](q_device)
-            self.ry_layers[k](q_device)
-            self.rz_layers2[k](q_device)
-            self.cnot_layers[k](q_device)
-        
 
-    def calculate_probabilities(self, target_eigenvectors_denary):
+    tq.static_support
+    def forward(self, x, q_device=None):
+        q_device = self.q_device if q_device is None else q_device
+        q_device.reset_states(x.size(0))
+
+        # Apply angle encoding to get the parameters for the gates
+        angles = self.angle_encoding(x.float())
+        # Reshape angles to (batch_size, n_layers, n_wires, 3)
+        angles = angles.view(x.size(0), self.n_layers, self.n_wires, 3)
+
+        for layer in range(self.n_layers):
+            for wire in range(self.n_wires):
+                # Apply the rz and ry gates in parallel for the whole batch
+                tqf.rz(q_device, wires=wire, params=angles[:, layer, wire, 0], static=self.static_mode, parent_graph=self.graph)
+                tqf.ry(q_device, wires=wire, params=angles[:, layer, wire, 1], static=self.static_mode, parent_graph=self.graph)
+                tqf.rz(q_device, wires=wire, params=angles[:, layer, wire, 2], static=self.static_mode, parent_graph=self.graph)
+            
+            # Apply the CZ layer for this layer
+            self.cz_layers[layer](q_device)
+
+
+    def calculate_probabilities(self, input, target_eigenvectors_denary):
         """
         Calculates the probabilities of target eigenvectors from the current statevector.
 
@@ -68,12 +59,18 @@ class HardwareEfficientNoInput(tq.QuantumModule):
         - torch.Tensor: A tensor containing the probabilities corresponding to the target eigenvectors.
         """
         # Get the current statevector
-        self.forward()
+        self.forward(input)
         statevector = self.q_device.get_states_1d()
+        # print("STATE", statevector)
         # Flatten the statevector and calculate the probabilities
         target_eigenvectors_denary = target_eigenvectors_denary.to(torch.int64)
-        statevector = statevector.flatten()
-        probability_amplitudes = statevector[target_eigenvectors_denary]  # PyTorch fancy indexing
+        # print("TARGETS", target_eigenvectors_denary)
+        # statevector = statevector.flatten()
+
+        row_indices = torch.arange(len(target_eigenvectors_denary))
+
+        probability_amplitudes = statevector[row_indices, target_eigenvectors_denary]
+
         return probability_amplitudes.abs() ** 2
 
     def calculate_expected_value(self, eigenvalues):
@@ -93,7 +90,7 @@ class HardwareEfficientNoInput(tq.QuantumModule):
             
  
 
-    def sample_from_model(self, n_shots):
+    def sample_from_model(self, x_data):
         """
         Samples from the quantum device after running the quantum circuit.
 
@@ -104,6 +101,11 @@ class HardwareEfficientNoInput(tq.QuantumModule):
         - torch.Tensor: A tensor containing the sampled measurement outcomes.
         """
         # Run the forward method with measurement
-        self.forward()
-        samples = tq.measurements.measure(self.q_device, n_shots=n_shots)
-        return samples
+        expanded_samples = []
+        for x in x_data:
+            self.forward(x.unsqueeze(0))
+            samples = tq.measurements.measure(self.q_device, n_shots=1)
+            for key, freq in samples[0].items():
+                value = evenlySpaceEigenstates(key, self.n_wires, -2, 2)
+                expanded_samples.extend([value] * freq)
+        return expanded_samples

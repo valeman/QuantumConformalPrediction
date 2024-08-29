@@ -10,6 +10,7 @@ class LearnedNonLinear(nn.Module):
         self.fc3 = nn.Linear(10, num_layer_PQC*num_qubits*3, bias=True)
         self.activ = torch.nn.ELU()
     def forward(self, x):
+        x = x.view(-1, 1)
         x = self.fc1(x)
         x = self.activ(x)
         x = self.fc2(x) 
@@ -24,6 +25,7 @@ class LearnedLinear(nn.Module):
         super(LearnedLinear, self).__init__()
         self.fc = nn.Linear(1, num_layer_PQC*num_qubits*3, bias=True) # for input with size 1, exactly same as in the data-reuploading paper
     def forward(self, x):
+        x = x.view(-1, 1)
         x = self.fc(x)
         return x # this is all angles for unitary gates in PQC
 
@@ -36,5 +38,6 @@ class Conventional(nn.Module): ## this is more pure angle encoding used with Fou
             self.fc.weight.copy_(torch.ones(num_layer_PQC*num_qubits*3, 1))
             self.fc.weight.requires_grad = False
     def forward(self, x):
+        x = x.view(-1, 1)
         x = self.fc(x)
         return x  # this is all angles for unitary gates in PQC

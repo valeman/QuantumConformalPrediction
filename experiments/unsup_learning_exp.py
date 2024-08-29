@@ -20,7 +20,7 @@ def train_and_save_model(save_pqc_file_name, model_type, plot_results=True):
 
         
     from circuits import HardwareEfficientNoInput
-    from utils import combinedNormals
+    from utils.combined_normals import combinedNormals
     from utils.helper_functions import toClosestEigenstate, evenlySpaceEigenstates
 
     # create training data

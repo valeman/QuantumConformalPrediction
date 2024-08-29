@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 import torch.optim as optim
-from utils.customDistribution import combinedNormals
+from utils.combined_normals import combinedNormals
 
 from torch.utils.data import DataLoader, TensorDataset
 from utils.helper_functions import evenlySpaceEigenstates, toClosestEigenstate

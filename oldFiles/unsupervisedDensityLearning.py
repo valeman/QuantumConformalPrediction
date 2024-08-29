@@ -19,7 +19,7 @@ from qiskit.circuit.library import TwoLocal
 import pickle
 
 from qiskit_aer.library import SaveDensityMatrix
-from utils.customDistribution import combinedNormals
+from utils.combined_normals import combinedNormals
 
 from torch.utils.data import DataLoader, TensorDataset
 

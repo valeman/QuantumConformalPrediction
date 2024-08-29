@@ -21,7 +21,7 @@ class combinedNormals(rv_continuous):
         cdf2 = norm.cdf(x, self.mean2, self.std2)
         return 0.5 * (cdf1 + cdf2)
     
-    def _rvs(self, size=None, random_state=None):
+    def _rvs(self, size=1, random_state=None):
         choices = np.random.choice([0, 1], size=size, p=[0.5, 0.5])
 
         samples = np.where(
