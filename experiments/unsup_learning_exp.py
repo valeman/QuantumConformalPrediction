@@ -2,7 +2,6 @@ from qiskit import qpy
 import numpy as np
 import matplotlib.pyplot as plt
 from qiskit.visualization import circuit_drawer
-# from CPProcedure.CP_procedure import ConformalPredictionProcedure
 
 
 N_WIRES = 5
@@ -11,22 +10,6 @@ N_EPOCHS = 70
 BATCH_SIZE = 20
 N_TRAINING_SAMPLES = 50
 
-
-## the aim of the new code is to be able to run a set of commands like the below
-# CPprocedure = ConformalPredictionProcedure(callibration_data, 
-#                                            "circuit_file_name.qpy", 
-#                                            "IBMQ-M3", 
-#                                            "QCP k=1", 
-#                                            alpha)
-# CPprocedure.compute_quantile()
-# CPprocedure.generate_prediction_set(test_x)
-# MUST BE IN QISKITVENV
-
-def run_on_ibm_quantum(load_pqc_file_name, n_shots=100):
-    CP_procedure = ConformalPredictionProcedure(None, "pqc_circuit.qpy", "IBMQ", None, None, n_shots)
-    CP_procedure.runTrainedModel()
-
-# MUST BE IN QTVENV
 def train_and_save_model(save_pqc_file_name, model_type, plot_results=True):
     import torchquantum as tq
     from torchquantum.plugin import tq2qiskit 
@@ -49,6 +32,7 @@ def train_and_save_model(save_pqc_file_name, model_type, plot_results=True):
 
     # create and train pqc
     pqc = HardwareEfficientNoInput(n_wires=N_WIRES, n_layers=N_LAYERS)
+
 
     if model_type == "IP":
         from training.implicit_probabilistic_trainer import BackpropogationTrainer
